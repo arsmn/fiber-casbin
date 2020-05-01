@@ -1,4 +1,4 @@
-package fiber_casbin
+package fibercasbin
 
 import (
 	"log"
@@ -20,7 +20,7 @@ type CasbinMiddleware struct {
 	subLookupFn SubjectLookupFunc
 }
 
-type SubjectLookupFunc func(c *fiber.Ctx) string
+type SubjectLookupFunc func(*fiber.Ctx) string
 
 func New(config ...Config) *CasbinMiddleware {
 
