@@ -44,7 +44,7 @@ func main() {
       // your handler
   })
   
-  app.Delete("/blog/:id", authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.MatchAll), func(c *fiber.Ctx){
+  app.Delete("/blog/:id", authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne), func(c *fiber.Ctx){
       // your handler
   })
 
