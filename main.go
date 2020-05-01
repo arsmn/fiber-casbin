@@ -117,3 +117,22 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 
 	}
 }
+
+func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
+	return func(c *fiber.Ctx) {
+
+		sub := cm.subLookupFn(c)
+		if len(sub) == 0 {
+			c.SendStatus(fiber.StatusUnauthorized)
+			return
+		}
+
+		if ok := cm.enforcer.Enforce(sub, c.Path(), c.Method()); !ok {
+			c.SendStatus(fiber.StatusForbidden)
+			return
+		}
+
+		c.Next()
+		return
+	}
+}
