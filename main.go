@@ -9,21 +9,41 @@ import (
 	"github.com/gofiber/fiber"
 )
 
-type CasbinMiddleware struct {
-	enforcer    *casbin.Enforcer
-	subLookupFn SubjectLookup
+type Config struct {
+	ModelFilePath string
+	PolicyAdapter persist.Adapter
+	SubLookupFn   SubjectLookupFunc
 }
 
-type SubjectLookup func(c *fiber.Ctx) string
+type CasbinMiddleware struct {
+	enforcer    *casbin.Enforcer
+	subLookupFn SubjectLookupFunc
+}
 
-func New(modelPath string, adapter persist.Adapter, subLookupFn SubjectLookup) *CasbinMiddleware {
-	if subLookupFn == nil {
+type SubjectLookupFunc func(c *fiber.Ctx) string
+
+func New(config ...Config) *CasbinMiddleware {
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
+	}
+
+	if cfg.SubLookupFn == nil {
 		log.Fatal("Fiber: Casbin middleware requires SubjectLookup function")
 	}
 
+	if cfg.ModelFilePath == "" {
+		log.Fatal("Fiber: Casbin middleware requires model file path")
+	}
+
+	if cfg.PolicyAdapter == nil {
+		log.Fatal("Fiber: Casbin middleware requires a policy adapter")
+	}
+
 	return &CasbinMiddleware{
-		enforcer:    casbin.NewEnforcer(modelPath, adapter),
-		subLookupFn: subLookupFn,
+		subLookupFn: cfg.SubLookupFn,
+		enforcer:    casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter),
 	}
 }
 
