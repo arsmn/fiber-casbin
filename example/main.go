@@ -2,7 +2,7 @@ package main
 
 import (
 	fibercasbin "github.com/arsmn/fiber-casbin"
-	fileadapter "github.com/casbin/casbin/persist/file-adapter"
+	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/gofiber/fiber"
 )
 

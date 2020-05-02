@@ -3,6 +3,6 @@ module github.com/arsmn/fiber-casbin
 go 1.14
 
 require (
-	github.com/casbin/casbin v1.9.1
+	github.com/casbin/casbin/v2 v2.2.2
 	github.com/gofiber/fiber v1.9.3
 )

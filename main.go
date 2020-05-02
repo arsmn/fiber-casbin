@@ -4,8 +4,8 @@ import (
 	"log"
 	"strings"
 
-	"github.com/casbin/casbin"
-	"github.com/casbin/casbin/persist"
+	"github.com/casbin/casbin/v2"
+	"github.com/casbin/casbin/v2/persist"
 	"github.com/gofiber/fiber"
 )
 
@@ -36,12 +36,9 @@ func New(config ...Config) *CasbinMiddleware {
 		log.Fatal("Fiber: Casbin middleware requires SubjectLookup function")
 	}
 
-	if cfg.ModelFilePath == "" {
-		log.Fatal("Fiber: Casbin middleware requires model file path")
-	}
-
-	if cfg.PolicyAdapter == nil {
-		log.Fatal("Fiber: Casbin middleware requires a policy adapter")
+	enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
+	if err != nil {
+		log.Fatalf("Fiber: Casbin middleware error -> %v", err)
 	}
 
 	if cfg.Unauthorized == nil {
@@ -59,7 +56,7 @@ func New(config ...Config) *CasbinMiddleware {
 	return &CasbinMiddleware{
 		config:      cfg,
 		subLookupFn: cfg.SubLookupFn,
-		enforcer:    casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter),
+		enforcer:    enforcer,
 	}
 }
 
@@ -134,7 +131,10 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
 				obj, act := options.PermissionParser(permission)
-				if ok := cm.enforcer.Enforce(sub, obj, act); !ok {
+				if ok, err := cm.enforcer.Enforce(sub, obj, act); err != nil {
+					c.SendStatus(fiber.StatusInternalServerError)
+					return
+				} else if !ok {
 					cm.config.Forbidden(c)
 					return
 				}
@@ -144,7 +144,10 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
 				obj, act := options.PermissionParser(permission)
-				if ok := cm.enforcer.Enforce(sub, obj, act); ok {
+				if ok, err := cm.enforcer.Enforce(sub, obj, act); err != nil {
+					c.SendStatus(fiber.StatusInternalServerError)
+					return
+				} else if ok {
 					c.Next()
 					return
 				}
@@ -165,7 +168,10 @@ func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
 			return
 		}
 
-		if ok := cm.enforcer.Enforce(sub, c.Path(), c.Method()); !ok {
+		if ok, err := cm.enforcer.Enforce(sub, c.Path(), c.Method()); err != nil {
+			c.SendStatus(fiber.StatusInternalServerError)
+			return
+		} else if !ok {
 			cm.config.Forbidden(c)
 			return
 		}
