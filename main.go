@@ -75,15 +75,11 @@ var AtLeastOne = func(o *Options) {
 	o.ValidationRule = atLeastOne
 }
 
-type PermissionParserFunc func(str string) (string, string)
+type PermissionParserFunc func(str string) []string
 
 func permissionParserWithSeperator(sep string) PermissionParserFunc {
-	return func(str string) (string, string) {
-		if !strings.Contains(str, sep) {
-			return "", ""
-		}
-		vals := strings.Split(str, sep)
-		return vals[0], vals[1]
+	return func(str string) []string {
+		return strings.Split(str, sep)
 	}
 }
 
@@ -109,13 +105,6 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		o(options)
 	}
 
-	for _, permission := range permissions {
-		obj, act := options.PermissionParser(permission)
-		if obj == "" || act == "" {
-			log.Fatalf("Fiber: Casbin middleware could not parse permission -> %s", permission)
-		}
-	}
-
 	return func(c *fiber.Ctx) {
 		if len(permissions) == 0 {
 			c.Next()
@@ -128,10 +117,12 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			return
 		}
 
+		vals := []string{sub}
+
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
-				obj, act := options.PermissionParser(permission)
-				if ok, err := cm.enforcer.Enforce(sub, obj, act); err != nil {
+				vals = append(vals, options.PermissionParser(permission)...)
+				if ok, err := cm.enforcer.Enforce(vals); err != nil {
 					c.SendStatus(fiber.StatusInternalServerError)
 					return
 				} else if !ok {
@@ -143,8 +134,8 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			return
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
-				obj, act := options.PermissionParser(permission)
-				if ok, err := cm.enforcer.Enforce(sub, obj, act); err != nil {
+				vals = append(vals, options.PermissionParser(permission)...)
+				if ok, err := cm.enforcer.Enforce(vals); err != nil {
 					c.SendStatus(fiber.StatusInternalServerError)
 					return
 				} else if ok {
@@ -156,6 +147,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			return
 		}
 
+		c.Next()
 	}
 }
 
@@ -179,4 +171,65 @@ func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
 		c.Next()
 		return
 	}
+}
+
+func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Options)) func(*fiber.Ctx) {
+	options := &Options{
+		ValidationRule:   matchAll,
+		PermissionParser: permissionParserWithSeperator(":"),
+	}
+
+	for _, o := range opts {
+		o(options)
+	}
+
+	return func(c *fiber.Ctx) {
+		if len(roles) == 0 {
+			c.Next()
+			return
+		}
+
+		sub := cm.subLookupFn(c)
+		if len(sub) == 0 {
+			cm.config.Unauthorized(c)
+			return
+		}
+
+		userRoles, err := cm.enforcer.GetRolesForUser(sub)
+		if err != nil {
+			c.SendStatus(fiber.StatusInternalServerError)
+			return
+		}
+
+		if options.ValidationRule == matchAll {
+			for _, role := range roles {
+				if !contains(userRoles, role) {
+					cm.config.Forbidden(c)
+					return
+				}
+			}
+			c.Next()
+			return
+		} else if options.ValidationRule == atLeastOne {
+			for _, role := range roles {
+				if contains(userRoles, role) {
+					c.Next()
+					return
+				}
+			}
+			cm.config.Forbidden(c)
+			return
+		}
+
+		c.Next()
+	}
+}
+
+func contains(s []string, v string) bool {
+	for _, vv := range s {
+		if vv == v {
+			return true
+		}
+	}
+	return false
 }
