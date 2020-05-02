@@ -122,7 +122,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
 				vals = append(vals, options.PermissionParser(permission)...)
-				if ok, err := cm.enforcer.Enforce(vals); err != nil {
+				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
 					c.SendStatus(fiber.StatusInternalServerError)
 					return
 				} else if !ok {
@@ -135,7 +135,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
 				vals = append(vals, options.PermissionParser(permission)...)
-				if ok, err := cm.enforcer.Enforce(vals); err != nil {
+				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
 					c.SendStatus(fiber.StatusInternalServerError)
 					return
 				} else if ok {
@@ -232,4 +232,12 @@ func contains(s []string, v string) bool {
 		}
 	}
 	return false
+}
+
+func convertToInterface(arr []string) []interface{} {
+	in := make([]interface{}, 0)
+	for _, a := range arr {
+		in = append(in, a)
+	}
+	return in
 }
