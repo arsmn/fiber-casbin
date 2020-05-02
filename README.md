@@ -73,7 +73,7 @@ func main() {
       }
   })
 
-  // check permission wity Method and Path
+  // check permission with Method and Path
   app.Post("/blog", authz.RoutePermission(), func(c *fiber.Ctx){
       // your handler
   })
