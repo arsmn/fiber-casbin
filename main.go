@@ -13,9 +13,12 @@ type Config struct {
 	ModelFilePath string
 	PolicyAdapter persist.Adapter
 	SubLookupFn   SubjectLookupFunc
+	Unauthorized  func(*fiber.Ctx)
+	Forbidden     func(*fiber.Ctx)
 }
 
 type CasbinMiddleware struct {
+	config      Config
 	enforcer    *casbin.Enforcer
 	subLookupFn SubjectLookupFunc
 }
@@ -41,7 +44,20 @@ func New(config ...Config) *CasbinMiddleware {
 		log.Fatal("Fiber: Casbin middleware requires a policy adapter")
 	}
 
+	if cfg.Unauthorized == nil {
+		cfg.Unauthorized = func(c *fiber.Ctx) {
+			c.SendStatus(fiber.StatusUnauthorized)
+		}
+	}
+
+	if cfg.Forbidden == nil {
+		cfg.Forbidden = func(c *fiber.Ctx) {
+			c.SendStatus(fiber.StatusForbidden)
+		}
+	}
+
 	return &CasbinMiddleware{
+		config:      cfg,
 		subLookupFn: cfg.SubLookupFn,
 		enforcer:    casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter),
 	}
@@ -111,7 +127,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 
 		sub := cm.subLookupFn(c)
 		if len(sub) == 0 {
-			c.SendStatus(fiber.StatusUnauthorized)
+			cm.config.Unauthorized(c)
 			return
 		}
 
@@ -119,7 +135,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			for _, permission := range permissions {
 				obj, act := options.PermissionParser(permission)
 				if ok := cm.enforcer.Enforce(sub, obj, act); !ok {
-					c.SendStatus(fiber.StatusForbidden)
+					cm.config.Forbidden(c)
 					return
 				}
 			}
@@ -133,7 +149,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 					return
 				}
 			}
-			c.SendStatus(fiber.StatusForbidden)
+			cm.config.Forbidden(c)
 			return
 		}
 
@@ -145,12 +161,12 @@ func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
 
 		sub := cm.subLookupFn(c)
 		if len(sub) == 0 {
-			c.SendStatus(fiber.StatusUnauthorized)
+			cm.config.Unauthorized(c)
 			return
 		}
 
 		if ok := cm.enforcer.Enforce(sub, c.Path(), c.Method()); !ok {
-			c.SendStatus(fiber.StatusForbidden)
+			cm.config.Forbidden(c)
 			return
 		}
 
