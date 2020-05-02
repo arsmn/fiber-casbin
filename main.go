@@ -123,7 +123,9 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 					return
 				}
 			}
-		} else {
+			c.Next()
+			return
+		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
 				obj, act := options.PermissionParser(permission)
 				if ok := cm.enforcer.Enforce(sub, obj, act); ok {
