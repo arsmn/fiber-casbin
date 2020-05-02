@@ -14,7 +14,7 @@ func main() {
 	authz := fibercasbin.New(fibercasbin.Config{
 		ModelFilePath: "model.conf",
 		PolicyAdapter: fileadapter.NewAdapter("policy.csv"),
-		SubLookupFn: func(c *fiber.Ctx) string {
+		Lookup: func(c *fiber.Ctx) string {
 			// get subject from BasicAuth, JWT, Cookie etc in real world
 			return "alice"
 		},

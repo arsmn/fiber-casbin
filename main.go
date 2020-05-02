@@ -6,25 +6,41 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/persist"
+	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/gofiber/fiber"
 )
 
+// Config holds the configuration for the middleware
 type Config struct {
+	// ModelFilePath is path to model file for Casbin.
+	// Optional. Default: "./model.conf".
 	ModelFilePath string
+
+	// PolicyAdapter is an interface for different persistent providers.
+	// Optional. Default: fileadapter.NewAdapter("./policy.csv").
 	PolicyAdapter persist.Adapter
-	SubLookupFn   SubjectLookupFunc
-	Unauthorized  func(*fiber.Ctx)
-	Forbidden     func(*fiber.Ctx)
+
+	// Lookup is a function that is used to look up current subject.
+	// An empty string is considered as unauthenticated user.
+	// Optional. Default: func(c *fiber.Ctx) string { return "" }
+	Lookup func(*fiber.Ctx) string
+
+	// Unauthorized defines the response body for unauthorized responses.
+	// Optional. Default: func(c *fiber.Ctx) string { c.SendStatus(401) }
+	Unauthorized func(*fiber.Ctx)
+
+	// Forbidden defines the response body for forbidden responses.
+	// Optional. Default: func(c *fiber.Ctx) string { c.SendStatus(403) }
+	Forbidden func(*fiber.Ctx)
 }
 
+// CasbinMiddleware ...
 type CasbinMiddleware struct {
-	config      Config
-	enforcer    *casbin.Enforcer
-	subLookupFn SubjectLookupFunc
+	config   Config
+	enforcer *casbin.Enforcer
 }
 
-type SubjectLookupFunc func(*fiber.Ctx) string
-
+// New creates an authorization middleware for use in Fiber
 func New(config ...Config) *CasbinMiddleware {
 
 	var cfg Config
@@ -32,13 +48,16 @@ func New(config ...Config) *CasbinMiddleware {
 		cfg = config[0]
 	}
 
-	if cfg.SubLookupFn == nil {
-		log.Fatal("Fiber: Casbin middleware requires SubjectLookup function")
+	if cfg.ModelFilePath == "" {
+		cfg.ModelFilePath = "./model.conf"
 	}
 
-	enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
-	if err != nil {
-		log.Fatalf("Fiber: Casbin middleware error -> %v", err)
+	if cfg.PolicyAdapter == nil {
+		cfg.PolicyAdapter = fileadapter.NewAdapter("./policy.csv")
+	}
+
+	if cfg.Lookup == nil {
+		cfg.Lookup = func(c *fiber.Ctx) string { return "" }
 	}
 
 	if cfg.Unauthorized == nil {
@@ -53,10 +72,14 @@ func New(config ...Config) *CasbinMiddleware {
 		}
 	}
 
+	enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
+	if err != nil {
+		log.Fatalf("Fiber: Casbin middleware error -> %v", err)
+	}
+
 	return &CasbinMiddleware{
-		config:      cfg,
-		subLookupFn: cfg.SubLookupFn,
-		enforcer:    enforcer,
+		config:   cfg,
+		enforcer: enforcer,
 	}
 }
 
@@ -67,14 +90,20 @@ const (
 	atLeastOne
 )
 
+// MatchAll is an option that defines all permissions
+// or roles should match the user.
 var MatchAll = func(o *Options) {
 	o.ValidationRule = matchAll
 }
 
+// AtLeastOne is an option that defines at least on of
+// permissions or roles should match to pass.
 var AtLeastOne = func(o *Options) {
 	o.ValidationRule = atLeastOne
 }
 
+// PermissionParserFunc is used for parsing the permission
+// to extract object and action usually
 type PermissionParserFunc func(str string) []string
 
 func permissionParserWithSeperator(sep string) PermissionParserFunc {
@@ -83,17 +112,22 @@ func permissionParserWithSeperator(sep string) PermissionParserFunc {
 	}
 }
 
+// PermissionParserWithSeperator is an option that parses permission
+// with seperators
 func PermissionParserWithSeperator(sep string) func(o *Options) {
 	return func(o *Options) {
 		o.PermissionParser = permissionParserWithSeperator(sep)
 	}
 }
 
+// Options holds options of middleware
 type Options struct {
 	ValidationRule   validationRule
 	PermissionParser PermissionParserFunc
 }
 
+// RequiresPermissions tries to find the current subject and determine if the
+// subject has the required permissions according to predefined Casbin policies.
 func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...func(o *Options)) func(*fiber.Ctx) {
 
 	options := &Options{
@@ -111,7 +145,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			return
 		}
 
-		sub := cm.subLookupFn(c)
+		sub := cm.config.Lookup(c)
 		if len(sub) == 0 {
 			cm.config.Unauthorized(c)
 			return
@@ -149,10 +183,13 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 	}
 }
 
+// RoutePermission tries to find the current subject and determine if the
+// subject has the required permissions according to predefined Casbin policies.
+// This method uses http Path and Method as object and action.
 func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
 	return func(c *fiber.Ctx) {
 
-		sub := cm.subLookupFn(c)
+		sub := cm.config.Lookup(c)
 		if len(sub) == 0 {
 			cm.config.Unauthorized(c)
 			return
@@ -171,6 +208,8 @@ func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
 	}
 }
 
+// RequiresRoles tries to find the current subject and determine if the
+// subject has the required roles according to predefined Casbin policies.
 func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Options)) func(*fiber.Ctx) {
 	options := &Options{
 		ValidationRule:   matchAll,
@@ -187,7 +226,7 @@ func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Option
 			return
 		}
 
-		sub := cm.subLookupFn(c)
+		sub := cm.config.Lookup(c)
 		if len(sub) == 0 {
 			cm.config.Unauthorized(c)
 			return

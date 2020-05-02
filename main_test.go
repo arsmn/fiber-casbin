@@ -18,70 +18,70 @@ func Test_RequiresPermission(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		subLookupFn SubjectLookupFunc
+		lookup      func(*fiber.Ctx) string
 		permissions []string
 		rule        func(o *Options)
 		statusCode  int
 	}{
 		{
 			name:        "alice have permission to create blog",
-			subLookupFn: subjectAlice,
+			lookup:      subjectAlice,
 			permissions: []string{"blog:create"},
 			rule:        MatchAll,
 			statusCode:  200,
 		},
 		{
 			name:        "alice have permission to create blog",
-			subLookupFn: subjectAlice,
+			lookup:      subjectAlice,
 			permissions: []string{"blog:create"},
 			rule:        AtLeastOne,
 			statusCode:  200,
 		},
 		{
 			name:        "alice have permission to create and update blog",
-			subLookupFn: subjectAlice,
+			lookup:      subjectAlice,
 			permissions: []string{"blog:create", "blog:update"},
 			rule:        MatchAll,
 			statusCode:  200,
 		},
 		{
 			name:        "alice have permission to create comment or blog",
-			subLookupFn: subjectAlice,
+			lookup:      subjectAlice,
 			permissions: []string{"comment:create", "blog:create"},
 			rule:        AtLeastOne,
 			statusCode:  200,
 		},
 		{
 			name:        "bob have only permission to create comment",
-			subLookupFn: subjectBob,
+			lookup:      subjectBob,
 			permissions: []string{"comment:create", "blog:create"},
 			rule:        AtLeastOne,
 			statusCode:  200,
 		},
 		{
 			name:        "unauthenticated user have no permissions",
-			subLookupFn: subjectNil,
+			lookup:      subjectNil,
 			permissions: []string{"comment:create"},
 			rule:        MatchAll,
 			statusCode:  401,
 		},
 		{
 			name:        "bob have not permission to create blog",
-			subLookupFn: subjectBob,
+			lookup:      subjectBob,
 			permissions: []string{"blog:create"},
 			rule:        MatchAll,
 			statusCode:  403,
 		},
 		{
 			name:        "bob have not permission to delete blog",
-			subLookupFn: subjectBob,
+			lookup:      subjectBob,
 			permissions: []string{"blog:delete"},
 			rule:        MatchAll,
 			statusCode:  403,
 		},
 		{
 			name:        "invalid permission",
-			subLookupFn: subjectBob,
+			lookup:      subjectBob,
 			permissions: []string{"unknown"},
 			rule:        MatchAll,
 			statusCode:  500,
@@ -93,7 +93,7 @@ func Test_RequiresPermission(t *testing.T) {
 		authz := New(Config{
 			ModelFilePath: "./example/model.conf",
 			PolicyAdapter: fileadapter.NewAdapter("./example/policy.csv"),
-			SubLookupFn:   tt.subLookupFn,
+			Lookup:        tt.lookup,
 		})
 
 		app.Post("/blog",
@@ -121,74 +121,74 @@ func Test_RequiresPermission(t *testing.T) {
 func Test_RequiresRoles(t *testing.T) {
 
 	tests := []struct {
-		name        string
-		subLookupFn SubjectLookupFunc
-		roles       []string
-		rule        func(o *Options)
-		statusCode  int
+		name       string
+		lookup     func(*fiber.Ctx) string
+		roles      []string
+		rule       func(o *Options)
+		statusCode int
 	}{
 		{
-			name:        "alice have user role",
-			subLookupFn: subjectAlice,
-			roles:       []string{"user"},
-			rule:        MatchAll,
-			statusCode:  200,
+			name:       "alice have user role",
+			lookup:     subjectAlice,
+			roles:      []string{"user"},
+			rule:       MatchAll,
+			statusCode: 200,
 		},
 		{
-			name:        "alice have admin role",
-			subLookupFn: subjectAlice,
-			roles:       []string{"admin"},
-			rule:        AtLeastOne,
-			statusCode:  200,
+			name:       "alice have admin role",
+			lookup:     subjectAlice,
+			roles:      []string{"admin"},
+			rule:       AtLeastOne,
+			statusCode: 200,
 		},
 		{
-			name:        "alice have both user and admin roles",
-			subLookupFn: subjectAlice,
-			roles:       []string{"user", "admin"},
-			rule:        MatchAll,
-			statusCode:  200,
+			name:       "alice have both user and admin roles",
+			lookup:     subjectAlice,
+			roles:      []string{"user", "admin"},
+			rule:       MatchAll,
+			statusCode: 200,
 		},
 		{
-			name:        "alice have both user and admin roles",
-			subLookupFn: subjectAlice,
-			roles:       []string{"user", "admin"},
-			rule:        AtLeastOne,
-			statusCode:  200,
+			name:       "alice have both user and admin roles",
+			lookup:     subjectAlice,
+			roles:      []string{"user", "admin"},
+			rule:       AtLeastOne,
+			statusCode: 200,
 		},
 		{
-			name:        "bob have only user role",
-			subLookupFn: subjectBob,
-			roles:       []string{"user"},
-			rule:        AtLeastOne,
-			statusCode:  200,
+			name:       "bob have only user role",
+			lookup:     subjectBob,
+			roles:      []string{"user"},
+			rule:       AtLeastOne,
+			statusCode: 200,
 		},
 		{
-			name:        "unauthenticated user have no permissions",
-			subLookupFn: subjectNil,
-			roles:       []string{"user"},
-			rule:        MatchAll,
-			statusCode:  401,
+			name:       "unauthenticated user have no permissions",
+			lookup:     subjectNil,
+			roles:      []string{"user"},
+			rule:       MatchAll,
+			statusCode: 401,
 		},
 		{
-			name:        "bob have not admin role",
-			subLookupFn: subjectBob,
-			roles:       []string{"admin"},
-			rule:        MatchAll,
-			statusCode:  403,
+			name:       "bob have not admin role",
+			lookup:     subjectBob,
+			roles:      []string{"admin"},
+			rule:       MatchAll,
+			statusCode: 403,
 		},
 		{
-			name:        "bob have only user role",
-			subLookupFn: subjectBob,
-			roles:       []string{"admin", "user"},
-			rule:        AtLeastOne,
-			statusCode:  200,
+			name:       "bob have only user role",
+			lookup:     subjectBob,
+			roles:      []string{"admin", "user"},
+			rule:       AtLeastOne,
+			statusCode: 200,
 		},
 		{
-			name:        "invalid role",
-			subLookupFn: subjectBob,
-			roles:       []string{"unknown"},
-			rule:        MatchAll,
-			statusCode:  403,
+			name:       "invalid role",
+			lookup:     subjectBob,
+			roles:      []string{"unknown"},
+			rule:       MatchAll,
+			statusCode: 403,
 		},
 	}
 
@@ -197,7 +197,7 @@ func Test_RequiresRoles(t *testing.T) {
 		authz := New(Config{
 			ModelFilePath: "./example/model.conf",
 			PolicyAdapter: fileadapter.NewAdapter("./example/policy.csv"),
-			SubLookupFn:   tt.subLookupFn,
+			Lookup:        tt.lookup,
 		})
 
 		app.Post("/blog",
