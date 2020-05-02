@@ -15,9 +15,11 @@ fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
 ### Config
 | Property | Type | Description | Default |
 | :--- | :--- | :--- | :--- |
-| ModelFilePath | `string` | Model file path | `""` |
-| PolicyAdapter | `persist.Adapter` | Database adapter for policies | `nil` |
-| SubLookupFn | `func(*fiber.Ctx) string` | Where to look for user subject | `nil` |
+| ModelFilePath | `string` | Model file path | `"./model.conf"` |
+| PolicyAdapter | `persist.Adapter` | Database adapter for policies | `./policy.csv` |
+| Lookup | `func(*fiber.Ctx) string` | Look up for current subject | `""` |
+| Unauthorized | `func(*fiber.Ctx)` | Response body for unauthorized responses | `Unauthorized` |
+| Forbidden | `func(*fiber.Ctx)` | Response body for forbidden responses | `Forbidden` |
 
 ### CustomPermission
 
