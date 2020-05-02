@@ -117,11 +117,9 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			return
 		}
 
-		vals := []string{sub}
-
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
-				vals = append(vals, options.PermissionParser(permission)...)
+				vals := append([]string{sub}, options.PermissionParser(permission)...)
 				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
 					c.SendStatus(fiber.StatusInternalServerError)
 					return
@@ -134,7 +132,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 			return
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
-				vals = append(vals, options.PermissionParser(permission)...)
+				vals := append([]string{sub}, options.PermissionParser(permission)...)
 				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
 					c.SendStatus(fiber.StatusInternalServerError)
 					return

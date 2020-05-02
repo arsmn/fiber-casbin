@@ -1,2 +1,9 @@
 p,admin,blog,create
+p,admin,blog,update
+p,admin,blog,delete
+p,user,comment,create
+p,user,comment,delete
+
 g,alice,admin
+g,alice,user
+g,bob,user
