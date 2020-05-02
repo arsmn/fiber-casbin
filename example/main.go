@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	fibercasbin "github.com/arsmn/fiber-casbin"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/gofiber/fiber"
@@ -14,7 +16,7 @@ func main() {
 		PolicyAdapter: fileadapter.NewAdapter("policy.csv"),
 		SubLookupFn: func(c *fiber.Ctx) string {
 			// get subject from BasicAuth, JWT, Cookie etc in real world
-			return "123"
+			return "alice"
 		},
 	})
 
@@ -22,6 +24,13 @@ func main() {
 		authz.RequiresPermissions([]string{"blog:create"}),
 		func(c *fiber.Ctx) {
 			c.SendString("Blog created")
+		},
+	)
+
+	app.Put("/blog/:id",
+		authz.RequiresRoles([]string{"admin"}),
+		func(c *fiber.Ctx) {
+			c.SendString(fmt.Sprintf("Blog updated with Id: %s", c.Params("id")))
 		},
 	)
 

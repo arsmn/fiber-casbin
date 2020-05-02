@@ -81,3 +81,35 @@ func main() {
   app.Listen(8080)
 }
 ```
+
+### RoleAuthorization
+
+```go
+package main
+
+import (
+  "github.com/gofiber/fiber"
+  "github.com/arsmn/fiber-casbin"
+  "github.com/casbin/mysql-adapter"
+)
+
+func main() {
+  app := fiber.New()
+  authz := fibercasbin.New(fibercasbin.Config{
+      ModelFilePath: "path/to/rbac_model.conf"
+      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
+      SubLookupFn: func(c *fiber.Ctx) string {
+          // fetch authenticated user subject
+      }
+  })
+
+	app.Put("/blog/:id",
+		authz.RequiresRoles([]string{"admin"}),
+		func(c *fiber.Ctx) {
+			c.SendString(fmt.Sprintf("Blog updated with Id: %s", c.Params("id")))
+		},
+	)
+
+  app.Listen(8080)
+}
+```
