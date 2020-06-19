@@ -1,4 +1,4 @@
-module github.com/arsmn/fiber-casbin
+module github.com/suleymanozev/fiber-casbin
 
 go 1.14
 
