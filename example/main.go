@@ -11,12 +11,14 @@ import (
 func main() {
 	app := fiber.New()
 
-	authz := fibercasbin.New(fibercasbin.Config{
+	authz := fibercasbin.NewWithConstructEnforcer(fibercasbin.ConstructEnforcerConfig{
 		ModelFilePath: "model.conf",
 		PolicyAdapter: fileadapter.NewAdapter("policy.csv"),
-		Lookup: func(c *fiber.Ctx) string {
-			// get subject from BasicAuth, JWT, Cookie etc in real world
-			return "alice"
+		Config: fibercasbin.Config{
+			Lookup: func(c *fiber.Ctx) string {
+				// get subject from BasicAuth, JWT, Cookie etc in real world
+				return "alice"
+			},
 		},
 	})
 

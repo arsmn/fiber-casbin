@@ -10,16 +10,7 @@ import (
 	"github.com/gofiber/fiber"
 )
 
-// Config holds the configuration for the middleware
 type Config struct {
-	// ModelFilePath is path to model file for Casbin.
-	// Optional. Default: "./model.conf".
-	ModelFilePath string
-
-	// PolicyAdapter is an interface for different persistent providers.
-	// Optional. Default: fileadapter.NewAdapter("./policy.csv").
-	PolicyAdapter persist.Adapter
-
 	// Lookup is a function that is used to look up current subject.
 	// An empty string is considered as unauthenticated user.
 	// Optional. Default: func(c *fiber.Ctx) string { return "" }
@@ -34,6 +25,19 @@ type Config struct {
 	Forbidden func(*fiber.Ctx)
 }
 
+// Config holds the configuration for the middleware
+type ConstructEnforcerConfig struct {
+	Config Config
+
+	// ModelFilePath is path to model file for Casbin.
+	// Optional. Default: "./model.conf".
+	ModelFilePath string
+
+	// PolicyAdapter is an interface for different persistent providers.
+	// Optional. Default: fileadapter.NewAdapter("./policy.csv").
+	PolicyAdapter persist.Adapter
+}
+
 // CasbinMiddleware ...
 type CasbinMiddleware struct {
 	config   Config
@@ -41,9 +45,9 @@ type CasbinMiddleware struct {
 }
 
 // New creates an authorization middleware for use in Fiber
-func New(config ...Config) *CasbinMiddleware {
+func NewWithConstructEnforcer(config ...ConstructEnforcerConfig) *CasbinMiddleware {
 
-	var cfg Config
+	var cfg ConstructEnforcerConfig
 	if len(config) > 0 {
 		cfg = config[0]
 	}
@@ -54,6 +58,41 @@ func New(config ...Config) *CasbinMiddleware {
 
 	if cfg.PolicyAdapter == nil {
 		cfg.PolicyAdapter = fileadapter.NewAdapter("./policy.csv")
+	}
+
+	if cfg.Config.Lookup == nil {
+		cfg.Config.Lookup = func(c *fiber.Ctx) string { return "" }
+	}
+
+	if cfg.Config.Unauthorized == nil {
+		cfg.Config.Unauthorized = func(c *fiber.Ctx) {
+			c.SendStatus(fiber.StatusUnauthorized)
+		}
+	}
+
+	if cfg.Config.Forbidden == nil {
+		cfg.Config.Forbidden = func(c *fiber.Ctx) {
+			c.SendStatus(fiber.StatusForbidden)
+		}
+	}
+
+	enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
+	if err != nil {
+		log.Fatalf("Fiber: Casbin middleware error -> %v", err)
+	}
+
+	return &CasbinMiddleware{
+		config:   cfg.Config,
+		enforcer: enforcer,
+	}
+}
+
+// New creates an authorization middleware for use in Fiber
+func NewWithEnforcer(enforcer *casbin.Enforcer, config ...Config) *CasbinMiddleware {
+
+	var cfg Config
+	if len(config) > 0 {
+		cfg = config[0]
 	}
 
 	if cfg.Lookup == nil {
@@ -70,11 +109,6 @@ func New(config ...Config) *CasbinMiddleware {
 		cfg.Forbidden = func(c *fiber.Ctx) {
 			c.SendStatus(fiber.StatusForbidden)
 		}
-	}
-
-	enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
-	if err != nil {
-		log.Fatalf("Fiber: Casbin middleware error -> %v", err)
 	}
 
 	return &CasbinMiddleware{
