@@ -34,21 +34,28 @@ import (
 
 func main() {
   app := fiber.New()
+
   authz := fibercasbin.New(fibercasbin.Config{
-      ModelFilePath: "path/to/rbac_model.conf"
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
-      SubLookupFn: func(c *fiber.Ctx) string {
+      ModelFilePath: "path/to/rbac_model.conf",
+      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
-      }
+      },
   })
 
-  app.Post("/blog", authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.MatchAll), func(c *fiber.Ctx){
-      // your handler
-  })
+  app.Post("/blog",
+      authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.MatchAll),
+      func(c *fiber.Ctx){
+        // your handler
+      },
+  )
   
-  app.Delete("/blog/:id", authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne), func(c *fiber.Ctx){
+  app.Delete("/blog/:id",
+    authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne),
+    func(c *fiber.Ctx){
       // your handler
-  })
+    },
+  )
 
   app.Listen(8080)
 }
@@ -67,18 +74,22 @@ import (
 
 func main() {
   app := fiber.New()
+
   authz := fibercasbin.New(fibercasbin.Config{
-      ModelFilePath: "path/to/rbac_model.conf"
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
-      SubLookupFn: func(c *fiber.Ctx) string {
+      ModelFilePath: "path/to/rbac_model.conf",
+      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
-      }
+      },
   })
 
   // check permission with Method and Path
-  app.Post("/blog", authz.RoutePermission(), func(c *fiber.Ctx){
+  app.Post("/blog",
+    authz.RoutePermission(),
+    func(c *fiber.Ctx){
       // your handler
-  })
+    },
+  )
 
   app.Listen(8080)
 }
@@ -97,18 +108,19 @@ import (
 
 func main() {
   app := fiber.New()
+
   authz := fibercasbin.New(fibercasbin.Config{
-      ModelFilePath: "path/to/rbac_model.conf"
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
-      SubLookupFn: func(c *fiber.Ctx) string {
+      ModelFilePath: "path/to/rbac_model.conf",
+      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
-      }
+      },
   })
 
 	app.Put("/blog/:id",
 		authz.RequiresRoles([]string{"admin"}),
 		func(c *fiber.Ctx) {
-			c.SendString(fmt.Sprintf("Blog updated with Id: %s", c.Params("id")))
+			// your handler
 		},
 	)
 
