@@ -116,13 +116,13 @@ func main() {
           // fetch authenticated user subject
       },
   })
-
-	app.Put("/blog/:id",
-		authz.RequiresRoles([]string{"admin"}),
-		func(c *fiber.Ctx) {
-			// your handler
-		},
-	)
+  
+  app.Put("/blog/:id",
+    authz.RequiresRoles([]string{"admin"}),
+    func(c *fiber.Ctx) {
+      // your handler
+    },
+  )
 
   app.Listen(8080)
 }
