@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 )
 
 var (
@@ -98,8 +98,8 @@ func Test_RequiresPermission(t *testing.T) {
 
 		app.Post("/blog",
 			authz.RequiresPermissions(tt.permissions, tt.rule),
-			func(c *fiber.Ctx) {
-				c.SendStatus(200)
+			func(c *fiber.Ctx) error {
+				return c.SendStatus(fiber.StatusOK)
 			},
 		)
 
@@ -202,8 +202,8 @@ func Test_RequiresRoles(t *testing.T) {
 
 		app.Post("/blog",
 			authz.RequiresRoles(tt.roles, tt.rule),
-			func(c *fiber.Ctx) {
-				c.SendStatus(200)
+			func(c *fiber.Ctx) error {
+				return c.SendStatus(fiber.StatusOK)
 			},
 		)
 

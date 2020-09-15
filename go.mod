@@ -1,8 +1,8 @@
-module github.com/arsmn/fiber-casbin
+module github.com/arsmn/fiber-casbin/v2
 
-go 1.11
+go 1.14
 
 require (
-	github.com/casbin/casbin/v2 v2.9.0
-	github.com/gofiber/fiber v1.13.3
+	github.com/gofiber/fiber/v2 v2.0.0
+	github.com/casbin/casbin/v2 v2.11.3
 )

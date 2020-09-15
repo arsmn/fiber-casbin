@@ -3,13 +3,13 @@ Casbin middleware for Fiber
 
 ### Install
 ```
-go get -u github.com/gofiber/fiber
-go get -u github.com/arsmn/fiber-casbin
+go get -u github.com/gofiber/fiber/v2
+go get -u github.com/arsmn/fiber-casbin/v2
 ```
 
 ### Signature
 ```go
-fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
+fibercasbin.New(config ...fibercasbin.Config) *fibercasbin.CasbinMiddleware
 ```
 
 ### Config
@@ -18,8 +18,8 @@ fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
 | ModelFilePath | `string` | Model file path | `"./model.conf"` |
 | PolicyAdapter | `persist.Adapter` | Database adapter for policies | `./policy.csv` |
 | Lookup | `func(*fiber.Ctx) string` | Look up for current subject | `""` |
-| Unauthorized | `func(*fiber.Ctx)` | Response body for unauthorized responses | `Unauthorized` |
-| Forbidden | `func(*fiber.Ctx)` | Response body for forbidden responses | `Forbidden` |
+| Unauthorized | `func(*fiber.Ctx) error` | Response body for unauthorized responses | `Unauthorized` |
+| Forbidden | `func(*fiber.Ctx) error` | Response body for forbidden responses | `Forbidden` |
 
 ### CustomPermission
 
@@ -27,8 +27,8 @@ fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
 package main
 
 import (
-  "github.com/gofiber/fiber"
-  "github.com/arsmn/fiber-casbin"
+  "github.com/gofiber/fiber/v2"
+  "github.com/arsmn/fiber-casbin/v2"
   "github.com/casbin/mysql-adapter"
 )
 
@@ -45,19 +45,19 @@ func main() {
 
   app.Post("/blog",
       authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.MatchAll),
-      func(c *fiber.Ctx){
+      func(c *fiber.Ctx) error {
         // your handler
       },
   )
   
   app.Delete("/blog/:id",
     authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne),
-    func(c *fiber.Ctx){
+    func(c *fiber.Ctx) error {
       // your handler
     },
   )
 
-  app.Listen(8080)
+  app.Listen(":8080")
 }
 ```
 
@@ -67,8 +67,8 @@ func main() {
 package main
 
 import (
-  "github.com/gofiber/fiber"
-  "github.com/arsmn/fiber-casbin"
+  "github.com/gofiber/fiber/v2"
+  "github.com/arsmn/fiber-casbin/v2"
   "github.com/casbin/mysql-adapter"
 )
 
@@ -86,12 +86,12 @@ func main() {
   // check permission with Method and Path
   app.Post("/blog",
     authz.RoutePermission(),
-    func(c *fiber.Ctx){
+    func(c *fiber.Ctx) error {
       // your handler
     },
   )
 
-  app.Listen(8080)
+  app.Listen(":8080")
 }
 ```
 
@@ -101,8 +101,8 @@ func main() {
 package main
 
 import (
-  "github.com/gofiber/fiber"
-  "github.com/arsmn/fiber-casbin"
+  "github.com/gofiber/fiber/v2"
+  "github.com/arsmn/fiber-casbin/v2"
   "github.com/casbin/mysql-adapter"
 )
 
@@ -119,11 +119,11 @@ func main() {
   
   app.Put("/blog/:id",
     authz.RequiresRoles([]string{"admin"}),
-    func(c *fiber.Ctx) {
+    func(c *fiber.Ctx) error {
       // your handler
     },
   )
 
-  app.Listen(8080)
+  app.Listen(":8080")
 }
 ```

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 
-	fibercasbin "github.com/arsmn/fiber-casbin"
+	fibercasbin "github.com/arsmn/fiber-casbin/v2"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 )
 
 func main() {
@@ -22,17 +22,17 @@ func main() {
 
 	app.Post("/blog",
 		authz.RequiresPermissions([]string{"blog:create"}),
-		func(c *fiber.Ctx) {
-			c.SendString("Blog created")
+		func(c *fiber.Ctx) error {
+			return c.SendString("Blog created")
 		},
 	)
 
 	app.Put("/blog/:id",
 		authz.RequiresRoles([]string{"admin"}),
-		func(c *fiber.Ctx) {
-			c.SendString(fmt.Sprintf("Blog updated with Id: %s", c.Params("id")))
+		func(c *fiber.Ctx) error {
+			return c.SendString(fmt.Sprintf("Blog updated with Id: %s", c.Params("id")))
 		},
 	)
 
-	app.Listen(8080)
+	app.Listen(":8080")
 }

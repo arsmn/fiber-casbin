@@ -7,7 +7,7 @@ import (
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/persist"
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
-	"github.com/gofiber/fiber"
+	"github.com/gofiber/fiber/v2"
 )
 
 // Config holds the configuration for the middleware
@@ -26,12 +26,12 @@ type Config struct {
 	Lookup func(*fiber.Ctx) string
 
 	// Unauthorized defines the response body for unauthorized responses.
-	// Optional. Default: func(c *fiber.Ctx) string { c.SendStatus(401) }
-	Unauthorized func(*fiber.Ctx)
+	// Optional. Default: func(c *fiber.Ctx) error { return c.SendStatus(401) }
+	Unauthorized fiber.Handler
 
 	// Forbidden defines the response body for forbidden responses.
-	// Optional. Default: func(c *fiber.Ctx) string { c.SendStatus(403) }
-	Forbidden func(*fiber.Ctx)
+	// Optional. Default: func(c *fiber.Ctx) error { return c.SendStatus(403) }
+	Forbidden fiber.Handler
 }
 
 // CasbinMiddleware ...
@@ -61,14 +61,14 @@ func New(config ...Config) *CasbinMiddleware {
 	}
 
 	if cfg.Unauthorized == nil {
-		cfg.Unauthorized = func(c *fiber.Ctx) {
-			c.SendStatus(fiber.StatusUnauthorized)
+		cfg.Unauthorized = func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusUnauthorized)
 		}
 	}
 
 	if cfg.Forbidden == nil {
-		cfg.Forbidden = func(c *fiber.Ctx) {
-			c.SendStatus(fiber.StatusForbidden)
+		cfg.Forbidden = func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusForbidden)
 		}
 	}
 
@@ -128,7 +128,7 @@ type Options struct {
 
 // RequiresPermissions tries to find the current subject and determine if the
 // subject has the required permissions according to predefined Casbin policies.
-func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...func(o *Options)) func(*fiber.Ctx) {
+func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...func(o *Options)) fiber.Handler {
 
 	options := &Options{
 		ValidationRule:   matchAll,
@@ -139,78 +139,65 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		o(options)
 	}
 
-	return func(c *fiber.Ctx) {
+	return func(c *fiber.Ctx) error {
 		if len(permissions) == 0 {
-			c.Next()
-			return
+			return c.Next()
 		}
 
 		sub := cm.config.Lookup(c)
 		if len(sub) == 0 {
-			cm.config.Unauthorized(c)
-			return
+			return cm.config.Unauthorized(c)
 		}
 
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
 				vals := append([]string{sub}, options.PermissionParser(permission)...)
 				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
-					c.SendStatus(fiber.StatusInternalServerError)
-					return
+					return c.SendStatus(fiber.StatusInternalServerError)
 				} else if !ok {
-					cm.config.Forbidden(c)
-					return
+					return cm.config.Forbidden(c)
 				}
 			}
-			c.Next()
-			return
+			return c.Next()
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
 				vals := append([]string{sub}, options.PermissionParser(permission)...)
 				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
-					c.SendStatus(fiber.StatusInternalServerError)
-					return
+					return c.SendStatus(fiber.StatusInternalServerError)
 				} else if ok {
-					c.Next()
-					return
+					return c.Next()
 				}
 			}
-			cm.config.Forbidden(c)
-			return
+			return cm.config.Forbidden(c)
 		}
 
-		c.Next()
+		return c.Next()
 	}
 }
 
 // RoutePermission tries to find the current subject and determine if the
 // subject has the required permissions according to predefined Casbin policies.
 // This method uses http Path and Method as object and action.
-func (cm *CasbinMiddleware) RoutePermission() func(*fiber.Ctx) {
-	return func(c *fiber.Ctx) {
-
+func (cm *CasbinMiddleware) RoutePermission() fiber.Handler {
+	return func(c *fiber.Ctx) error {
 		sub := cm.config.Lookup(c)
 		if len(sub) == 0 {
-			cm.config.Unauthorized(c)
-			return
+			return cm.config.Unauthorized(c)
 		}
 
 		if ok, err := cm.enforcer.Enforce(sub, c.Path(), c.Method()); err != nil {
-			c.SendStatus(fiber.StatusInternalServerError)
-			return
+			return c.SendStatus(fiber.StatusInternalServerError)
 		} else if !ok {
-			cm.config.Forbidden(c)
-			return
+			return cm.config.Forbidden(c)
 		}
 
-		c.Next()
-		return
+		return c.Next()
 	}
 }
 
 // RequiresRoles tries to find the current subject and determine if the
 // subject has the required roles according to predefined Casbin policies.
-func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Options)) func(*fiber.Ctx) {
+func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Options)) fiber.Handler {
 	options := &Options{
 		ValidationRule:   matchAll,
 		PermissionParser: permissionParserWithSeperator(":"),
@@ -220,45 +207,38 @@ func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Option
 		o(options)
 	}
 
-	return func(c *fiber.Ctx) {
+	return func(c *fiber.Ctx) error {
 		if len(roles) == 0 {
-			c.Next()
-			return
+			return c.Next()
 		}
 
 		sub := cm.config.Lookup(c)
 		if len(sub) == 0 {
-			cm.config.Unauthorized(c)
-			return
+			return cm.config.Unauthorized(c)
 		}
 
 		userRoles, err := cm.enforcer.GetRolesForUser(sub)
 		if err != nil {
-			c.SendStatus(fiber.StatusInternalServerError)
-			return
+			return c.SendStatus(fiber.StatusInternalServerError)
 		}
 
 		if options.ValidationRule == matchAll {
 			for _, role := range roles {
 				if !contains(userRoles, role) {
-					cm.config.Forbidden(c)
-					return
+					return cm.config.Forbidden(c)
 				}
 			}
-			c.Next()
-			return
+			return c.Next()
 		} else if options.ValidationRule == atLeastOne {
 			for _, role := range roles {
 				if contains(userRoles, role) {
-					c.Next()
-					return
+					return c.Next()
 				}
 			}
-			cm.config.Forbidden(c)
-			return
+			return cm.config.Forbidden(c)
 		}
 
-		c.Next()
+		return c.Next()
 	}
 }
 
