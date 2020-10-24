@@ -5,6 +5,8 @@ Casbin middleware for Fiber
 ```
 go get -u github.com/gofiber/fiber/v2
 go get -u github.com/arsmn/fiber-casbin/v2
+choose an adapter from [here](https://casbin.org/docs/en/adapters)
+go get -u github.com/casbin/xorm-adapter
 ```
 
 ### Signature
@@ -29,7 +31,8 @@ package main
 import (
   "github.com/gofiber/fiber/v2"
   "github.com/arsmn/fiber-casbin/v2"
-  "github.com/casbin/mysql-adapter"
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/casbin/xorm-adapter/v2"
 )
 
 func main() {
@@ -37,7 +40,7 @@ func main() {
 
   authz := fibercasbin.New(fibercasbin.Config{
       ModelFilePath: "path/to/rbac_model.conf",
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      PolicyAdapter: xormadapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
       Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
       },
@@ -69,7 +72,8 @@ package main
 import (
   "github.com/gofiber/fiber/v2"
   "github.com/arsmn/fiber-casbin/v2"
-  "github.com/casbin/mysql-adapter"
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/casbin/xorm-adapter/v2"
 )
 
 func main() {
@@ -77,7 +81,7 @@ func main() {
 
   authz := fibercasbin.New(fibercasbin.Config{
       ModelFilePath: "path/to/rbac_model.conf",
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      PolicyAdapter: xormadapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
       Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
       },
@@ -103,7 +107,8 @@ package main
 import (
   "github.com/gofiber/fiber/v2"
   "github.com/arsmn/fiber-casbin/v2"
-  "github.com/casbin/mysql-adapter"
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/casbin/xorm-adapter/v2"
 )
 
 func main() {
@@ -111,7 +116,7 @@ func main() {
 
   authz := fibercasbin.New(fibercasbin.Config{
       ModelFilePath: "path/to/rbac_model.conf",
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      PolicyAdapter: xormadapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
       Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
       },
