@@ -15,7 +15,6 @@ var (
 )
 
 func Test_RequiresPermission(t *testing.T) {
-
 	tests := []struct {
 		name        string
 		lookup      func(*fiber.Ctx) string
@@ -24,56 +23,56 @@ func Test_RequiresPermission(t *testing.T) {
 		statusCode  int
 	}{
 		{
-			name:        "alice have permission to create blog",
+			name:        "alice has permission to create blog",
 			lookup:      subjectAlice,
 			permissions: []string{"blog:create"},
 			rule:        MatchAll,
 			statusCode:  200,
 		},
 		{
-			name:        "alice have permission to create blog",
+			name:        "alice has permission to create blog",
 			lookup:      subjectAlice,
 			permissions: []string{"blog:create"},
 			rule:        AtLeastOne,
 			statusCode:  200,
 		},
 		{
-			name:        "alice have permission to create and update blog",
+			name:        "alice has permission to create and update blog",
 			lookup:      subjectAlice,
 			permissions: []string{"blog:create", "blog:update"},
 			rule:        MatchAll,
 			statusCode:  200,
 		},
 		{
-			name:        "alice have permission to create comment or blog",
+			name:        "alice has permission to create comment or blog",
 			lookup:      subjectAlice,
 			permissions: []string{"comment:create", "blog:create"},
 			rule:        AtLeastOne,
 			statusCode:  200,
 		},
 		{
-			name:        "bob have only permission to create comment",
+			name:        "bob has only permission to create comment",
 			lookup:      subjectBob,
 			permissions: []string{"comment:create", "blog:create"},
 			rule:        AtLeastOne,
 			statusCode:  200,
 		},
 		{
-			name:        "unauthenticated user have no permissions",
+			name:        "unauthenticated user has no permissions",
 			lookup:      subjectNil,
 			permissions: []string{"comment:create"},
 			rule:        MatchAll,
 			statusCode:  401,
 		},
 		{
-			name:        "bob have not permission to create blog",
+			name:        "bob has not permission to create blog",
 			lookup:      subjectBob,
 			permissions: []string{"blog:create"},
 			rule:        MatchAll,
 			statusCode:  403,
 		},
 		{
-			name:        "bob have not permission to delete blog",
+			name:        "bob has not permission to delete blog",
 			lookup:      subjectBob,
 			permissions: []string{"blog:delete"},
 			rule:        MatchAll,
@@ -114,12 +113,10 @@ func Test_RequiresPermission(t *testing.T) {
 				t.Fatalf(`%s: StatusCode: got %v - expected %v`, t.Name(), resp.StatusCode, tt.statusCode)
 			}
 		})
-
 	}
 }
 
 func Test_RequiresRoles(t *testing.T) {
-
 	tests := []struct {
 		name       string
 		lookup     func(*fiber.Ctx) string
@@ -128,56 +125,56 @@ func Test_RequiresRoles(t *testing.T) {
 		statusCode int
 	}{
 		{
-			name:       "alice have user role",
+			name:       "alice has user role",
 			lookup:     subjectAlice,
 			roles:      []string{"user"},
 			rule:       MatchAll,
 			statusCode: 200,
 		},
 		{
-			name:       "alice have admin role",
+			name:       "alice has admin role",
 			lookup:     subjectAlice,
 			roles:      []string{"admin"},
 			rule:       AtLeastOne,
 			statusCode: 200,
 		},
 		{
-			name:       "alice have both user and admin roles",
+			name:       "alice has both user and admin roles",
 			lookup:     subjectAlice,
 			roles:      []string{"user", "admin"},
 			rule:       MatchAll,
 			statusCode: 200,
 		},
 		{
-			name:       "alice have both user and admin roles",
+			name:       "alice has both user and admin roles",
 			lookup:     subjectAlice,
 			roles:      []string{"user", "admin"},
 			rule:       AtLeastOne,
 			statusCode: 200,
 		},
 		{
-			name:       "bob have only user role",
+			name:       "bob has only user role",
 			lookup:     subjectBob,
 			roles:      []string{"user"},
 			rule:       AtLeastOne,
 			statusCode: 200,
 		},
 		{
-			name:       "unauthenticated user have no permissions",
+			name:       "unauthenticated user has no permissions",
 			lookup:     subjectNil,
 			roles:      []string{"user"},
 			rule:       MatchAll,
 			statusCode: 401,
 		},
 		{
-			name:       "bob have not admin role",
+			name:       "bob has not admin role",
 			lookup:     subjectBob,
 			roles:      []string{"admin"},
 			rule:       MatchAll,
 			statusCode: 403,
 		},
 		{
-			name:       "bob have only user role",
+			name:       "bob has only user role",
 			lookup:     subjectBob,
 			roles:      []string{"admin", "user"},
 			rule:       AtLeastOne,
@@ -218,6 +215,105 @@ func Test_RequiresRoles(t *testing.T) {
 				t.Fatalf(`%s: StatusCode: got %v - expected %v`, t.Name(), resp.StatusCode, tt.statusCode)
 			}
 		})
+	}
+}
 
+func Test_RoutePermission(t *testing.T) {
+	tests := []struct {
+		name       string
+		url        string
+		method     string
+		subject    string
+		statusCode int
+	}{
+		{
+			name:       "alice has permission to create blog",
+			url:        "/blog",
+			method:     "POST",
+			subject:    "alice",
+			statusCode: 200,
+		},
+		{
+			name:       "alice has permission to update blog",
+			url:        "/blog/1",
+			method:     "PUT",
+			subject:    "alice",
+			statusCode: 200,
+		},
+		{
+			name:       "bob has only permission to create comment",
+			url:        "/comment",
+			method:     "POST",
+			subject:    "bob",
+			statusCode: 200,
+		},
+		{
+			name:       "unauthenticated user has no permissions",
+			url:        "/",
+			method:     "POST",
+			subject:    "",
+			statusCode: 401,
+		},
+		{
+			name:       "bob has not permission to create blog",
+			url:        "/blog",
+			method:     "POST",
+			subject:    "bob",
+			statusCode: 403,
+		},
+		{
+			name:       "bob has not permission to delete blog",
+			url:        "/blog/1",
+			method:     "DELETE",
+			subject:    "bob",
+			statusCode: 403,
+		},
+	}
+
+	app := *fiber.New()
+	authz := New(Config{
+		ModelFilePath: "./example/model.conf",
+		PolicyAdapter: fileadapter.NewAdapter("./example/policy.csv"),
+		Lookup: func(c *fiber.Ctx) string {
+			return c.Get("x-subject")
+		},
+	})
+
+	app.Use(authz.RoutePermission())
+	app.Post("/blog",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+	app.Put("/blog/:id",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+	app.Delete("/blog/:id",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+	app.Post("/comment",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest(tt.method, tt.url, nil)
+			req.Header.Set("x-subject", tt.subject)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf(`%s: %s`, t.Name(), err)
+			}
+
+			if resp.StatusCode != tt.statusCode {
+				t.Fatalf(`%s: StatusCode: got %v - expected %v`, t.Name(), resp.StatusCode, tt.statusCode)
+			}
+		})
 	}
 }
