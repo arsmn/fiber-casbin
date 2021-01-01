@@ -3,13 +3,17 @@ Casbin middleware for Fiber
 
 ### Install
 ```
-go get -u github.com/gofiber/fiber
-go get -u github.com/arsmn/fiber-casbin
+go get -u github.com/gofiber/fiber/v2
+go get -u github.com/arsmn/fiber-casbin/v2
+```
+choose an adapter from [here](https://casbin.org/docs/en/adapters)
+```
+go get -u github.com/casbin/xorm-adapter
 ```
 
 ### Signature
 ```go
-fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
+fibercasbin.New(config ...fibercasbin.Config) *fibercasbin.CasbinMiddleware
 ```
 
 ### Config
@@ -18,8 +22,8 @@ fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
 | ModelFilePath | `string` | Model file path | `"./model.conf"` |
 | PolicyAdapter | `persist.Adapter` | Database adapter for policies | `./policy.csv` |
 | Lookup | `func(*fiber.Ctx) string` | Look up for current subject | `""` |
-| Unauthorized | `func(*fiber.Ctx)` | Response body for unauthorized responses | `Unauthorized` |
-| Forbidden | `func(*fiber.Ctx)` | Response body for forbidden responses | `Forbidden` |
+| Unauthorized | `func(*fiber.Ctx) error` | Response body for unauthorized responses | `Unauthorized` |
+| Forbidden | `func(*fiber.Ctx) error` | Response body for forbidden responses | `Forbidden` |
 
 ### CustomPermission
 
@@ -27,30 +31,38 @@ fibercasbin.New(config ...fibercasbin.Config) func(c *fiber.Ctx)
 package main
 
 import (
-  "github.com/gofiber/fiber"
-  "github.com/arsmn/fiber-casbin"
-  "github.com/casbin/mysql-adapter"
+  "github.com/gofiber/fiber/v2"
+  "github.com/arsmn/fiber-casbin/v2"
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/casbin/xorm-adapter/v2"
 )
 
 func main() {
   app := fiber.New()
+
   authz := fibercasbin.New(fibercasbin.Config{
-      ModelFilePath: "path/to/rbac_model.conf"
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
-      SubLookupFn: func(c *fiber.Ctx) string {
+      ModelFilePath: "path/to/rbac_model.conf",
+      PolicyAdapter: xormadapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
-      }
+      },
   })
 
-  app.Post("/blog", authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.MatchAll), func(c *fiber.Ctx){
-      // your handler
-  })
+  app.Post("/blog",
+      authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.MatchAll),
+      func(c *fiber.Ctx) error {
+        // your handler
+      },
+  )
   
-  app.Delete("/blog/:id", authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne), func(c *fiber.Ctx){
+  app.Delete("/blog/:id",
+    authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne),
+    func(c *fiber.Ctx) error {
       // your handler
-  })
+    },
+  )
 
-  app.Listen(8080)
+  app.Listen(":8080")
 }
 ```
 
@@ -60,27 +72,32 @@ func main() {
 package main
 
 import (
-  "github.com/gofiber/fiber"
-  "github.com/arsmn/fiber-casbin"
-  "github.com/casbin/mysql-adapter"
+  "github.com/gofiber/fiber/v2"
+  "github.com/arsmn/fiber-casbin/v2"
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/casbin/xorm-adapter/v2"
 )
 
 func main() {
   app := fiber.New()
+
   authz := fibercasbin.New(fibercasbin.Config{
-      ModelFilePath: "path/to/rbac_model.conf"
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
-      SubLookupFn: func(c *fiber.Ctx) string {
+      ModelFilePath: "path/to/rbac_model.conf",
+      PolicyAdapter: xormadapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
-      }
+      },
   })
 
   // check permission with Method and Path
-  app.Post("/blog", authz.RoutePermission(), func(c *fiber.Ctx){
+  app.Post("/blog",
+    authz.RoutePermission(),
+    func(c *fiber.Ctx) error {
       // your handler
-  })
+    },
+  )
 
-  app.Listen(8080)
+  app.Listen(":8080")
 }
 ```
 
@@ -90,28 +107,30 @@ func main() {
 package main
 
 import (
-  "github.com/gofiber/fiber"
-  "github.com/arsmn/fiber-casbin"
-  "github.com/casbin/mysql-adapter"
+  "github.com/gofiber/fiber/v2"
+  "github.com/arsmn/fiber-casbin/v2"
+  _ "github.com/go-sql-driver/mysql"
+  "github.com/casbin/xorm-adapter/v2"
 )
 
 func main() {
   app := fiber.New()
+
   authz := fibercasbin.New(fibercasbin.Config{
-      ModelFilePath: "path/to/rbac_model.conf"
-      PolicyAdapter: mysqladapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/")
-      SubLookupFn: func(c *fiber.Ctx) string {
+      ModelFilePath: "path/to/rbac_model.conf",
+      PolicyAdapter: xormadapter.NewAdapter("mysql", "root:@tcp(127.0.0.1:3306)/"),
+      Lookup: func(c *fiber.Ctx) string {
           // fetch authenticated user subject
-      }
+      },
   })
+  
+  app.Put("/blog/:id",
+    authz.RequiresRoles([]string{"admin"}),
+    func(c *fiber.Ctx) error {
+      // your handler
+    },
+  )
 
-	app.Put("/blog/:id",
-		authz.RequiresRoles([]string{"admin"}),
-		func(c *fiber.Ctx) {
-			c.SendString(fmt.Sprintf("Blog updated with Id: %s", c.Params("id")))
-		},
-	)
-
-  app.Listen(8080)
+  app.Listen(":8080")
 }
 ```
