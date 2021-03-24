@@ -1,6 +1,8 @@
 package fibercasbin
 
 import (
+	"github.com/casbin/casbin/v2"
+	"log"
 	"net/http"
 	"testing"
 
@@ -274,6 +276,112 @@ func Test_RoutePermission(t *testing.T) {
 	authz := New(Config{
 		ModelFilePath: "./example/model.conf",
 		PolicyAdapter: fileadapter.NewAdapter("./example/policy.csv"),
+		Lookup: func(c *fiber.Ctx) string {
+			return c.Get("x-subject")
+		},
+	})
+
+	app.Use(authz.RoutePermission())
+	app.Post("/blog",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+	app.Put("/blog/:id",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+	app.Delete("/blog/:id",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+	app.Post("/comment",
+		func(c *fiber.Ctx) error {
+			return c.SendStatus(fiber.StatusOK)
+		},
+	)
+
+	for _, tt := range tests {
+
+		t.Run(tt.name, func(t *testing.T) {
+			req, _ := http.NewRequest(tt.method, tt.url, nil)
+			req.Header.Set("x-subject", tt.subject)
+			resp, err := app.Test(req)
+			if err != nil {
+				t.Fatalf(`%s: %s`, t.Name(), err)
+			}
+
+			if resp.StatusCode != tt.statusCode {
+				t.Fatalf(`%s: StatusCode: got %v - expected %v`, t.Name(), resp.StatusCode, tt.statusCode)
+			}
+		})
+	}
+}
+
+func Test_ModeEnforcer(t *testing.T) {
+	tests := []struct {
+		name       string
+		url        string
+		method     string
+		subject    string
+		statusCode int
+	}{
+		{
+			name:       "alice has permission to create blog",
+			url:        "/blog",
+			method:     "POST",
+			subject:    "alice",
+			statusCode: 200,
+		},
+		{
+			name:       "alice has permission to update blog",
+			url:        "/blog/1",
+			method:     "PUT",
+			subject:    "alice",
+			statusCode: 200,
+		},
+		{
+			name:       "bob has only permission to create comment",
+			url:        "/comment",
+			method:     "POST",
+			subject:    "bob",
+			statusCode: 200,
+		},
+		{
+			name:       "unauthenticated user has no permissions",
+			url:        "/",
+			method:     "POST",
+			subject:    "",
+			statusCode: 401,
+		},
+		{
+			name:       "bob has not permission to create blog",
+			url:        "/blog",
+			method:     "POST",
+			subject:    "bob",
+			statusCode: 403,
+		},
+		{
+			name:       "bob has not permission to delete blog",
+			url:        "/blog/1",
+			method:     "DELETE",
+			subject:    "bob",
+			statusCode: 403,
+		},
+	}
+
+	app := *fiber.New()
+
+	enforcer, err := casbin.NewEnforcer("./example/model.conf", fileadapter.NewAdapter("./example/policy.csv"))
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	authz := New(Config{
+		Mode: ModeEnforcer,
+		Enforcer: enforcer,
 		Lookup: func(c *fiber.Ctx) string {
 			return c.Get("x-subject")
 		},

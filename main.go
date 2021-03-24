@@ -10,8 +10,17 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+type FiberCasbinMode string
+
+const (
+	ModeEnforcer        FiberCasbinMode = "ModelEnforcer"
+	ModeModelAndAdapter FiberCasbinMode = "ModelAndAdapter"
+)
+
 // Config holds the configuration for the middleware
 type Config struct {
+	Mode FiberCasbinMode
+
 	// ModelFilePath is path to model file for Casbin.
 	// Optional. Default: "./model.conf".
 	ModelFilePath string
@@ -19,6 +28,10 @@ type Config struct {
 	// PolicyAdapter is an interface for different persistent providers.
 	// Optional. Default: fileadapter.NewAdapter("./policy.csv").
 	PolicyAdapter persist.Adapter
+
+	// Enforcer is an enforcer. If you want to use your own enforcer.
+	// Optional. Default: nil
+	Enforcer *casbin.Enforcer
 
 	// Lookup is a function that is used to look up current subject.
 	// An empty string is considered as unauthenticated user.
@@ -48,12 +61,33 @@ func New(config ...Config) *CasbinMiddleware {
 		cfg = config[0]
 	}
 
-	if cfg.ModelFilePath == "" {
-		cfg.ModelFilePath = "./model.conf"
+	if cfg.Mode == "" {
+		cfg.Mode = ModeModelAndAdapter
 	}
 
-	if cfg.PolicyAdapter == nil {
-		cfg.PolicyAdapter = fileadapter.NewAdapter("./policy.csv")
+	var enforcer *casbin.Enforcer
+
+	if cfg.Mode == ModeModelAndAdapter {
+		if cfg.ModelFilePath == "" {
+			cfg.ModelFilePath = "./model.conf"
+		}
+
+		if cfg.PolicyAdapter == nil {
+			cfg.PolicyAdapter = fileadapter.NewAdapter("./policy.csv")
+		}
+
+		var err error
+		enforcer, err = casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
+		if err != nil {
+			log.Fatalf("Fiber: Casbin middleware error -> %v", err)
+		}
+	}
+
+	if cfg.Mode == ModeEnforcer {
+		if cfg.Enforcer == nil {
+			log.Fatalf("Fiber: Casbin middleware error -> Middleware mode setted ModeEnforcer. But enforcer is nil")
+		}
+		enforcer = cfg.Enforcer
 	}
 
 	if cfg.Lookup == nil {
@@ -70,11 +104,6 @@ func New(config ...Config) *CasbinMiddleware {
 		cfg.Forbidden = func(c *fiber.Ctx) error {
 			return c.SendStatus(fiber.StatusForbidden)
 		}
-	}
-
-	enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
-	if err != nil {
-		log.Fatalf("Fiber: Casbin middleware error -> %v", err)
 	}
 
 	return &CasbinMiddleware{
