@@ -21,9 +21,14 @@ fibercasbin.New(config ...fibercasbin.Config) *fibercasbin.CasbinMiddleware
 | :--- | :--- | :--- | :--- |
 | ModelFilePath | `string` | Model file path | `"./model.conf"` |
 | PolicyAdapter | `persist.Adapter` | Database adapter for policies | `./policy.csv` |
+| Enforcer | `*casbin.Enforcer` | Custom casbin enforcer | `Middleware generated enforcer using ModelFilePath & PolicyAdapter` |
 | Lookup | `func(*fiber.Ctx) string` | Look up for current subject | `""` |
 | Unauthorized | `func(*fiber.Ctx) error` | Response body for unauthorized responses | `Unauthorized` |
 | Forbidden | `func(*fiber.Ctx) error` | Response body for forbidden responses | `Forbidden` |
+
+### Examples
+- [Gorm Adapter](https://github.com/svcg/-fiber_casbin_demo)
+- [File Adapter](https://github.com/arsmn/fiber-casbin/tree/master/example)
 
 ### CustomPermission
 
