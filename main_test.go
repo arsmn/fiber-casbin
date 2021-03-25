@@ -1,10 +1,11 @@
 package fibercasbin
 
 import (
-	"github.com/casbin/casbin/v2"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/casbin/casbin/v2"
 
 	fileadapter "github.com/casbin/casbin/v2/persist/file-adapter"
 	"github.com/gofiber/fiber/v2"
@@ -380,7 +381,6 @@ func Test_ModeEnforcer(t *testing.T) {
 	}
 
 	authz := New(Config{
-		Mode: ModeEnforcer,
 		Enforcer: enforcer,
 		Lookup: func(c *fiber.Ctx) string {
 			return c.Get("x-subject")

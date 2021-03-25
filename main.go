@@ -10,17 +10,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type FiberCasbinMode string
-
-const (
-	ModeEnforcer        FiberCasbinMode = "ModelEnforcer"
-	ModeModelAndAdapter FiberCasbinMode = "ModelAndAdapter"
-)
-
 // Config holds the configuration for the middleware
 type Config struct {
-	Mode FiberCasbinMode
-
 	// ModelFilePath is path to model file for Casbin.
 	// Optional. Default: "./model.conf".
 	ModelFilePath string
@@ -49,8 +40,7 @@ type Config struct {
 
 // CasbinMiddleware ...
 type CasbinMiddleware struct {
-	config   Config
-	enforcer *casbin.Enforcer
+	config Config
 }
 
 // New creates an authorization middleware for use in Fiber
@@ -61,13 +51,7 @@ func New(config ...Config) *CasbinMiddleware {
 		cfg = config[0]
 	}
 
-	if cfg.Mode == "" {
-		cfg.Mode = ModeModelAndAdapter
-	}
-
-	var enforcer *casbin.Enforcer
-
-	if cfg.Mode == ModeModelAndAdapter {
+	if cfg.Enforcer == nil {
 		if cfg.ModelFilePath == "" {
 			cfg.ModelFilePath = "./model.conf"
 		}
@@ -76,18 +60,12 @@ func New(config ...Config) *CasbinMiddleware {
 			cfg.PolicyAdapter = fileadapter.NewAdapter("./policy.csv")
 		}
 
-		var err error
-		enforcer, err = casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
+		enforcer, err := casbin.NewEnforcer(cfg.ModelFilePath, cfg.PolicyAdapter)
 		if err != nil {
 			log.Fatalf("Fiber: Casbin middleware error -> %v", err)
 		}
-	}
 
-	if cfg.Mode == ModeEnforcer {
-		if cfg.Enforcer == nil {
-			log.Fatalf("Fiber: Casbin middleware error -> Middleware mode setted ModeEnforcer. But enforcer is nil")
-		}
-		enforcer = cfg.Enforcer
+		cfg.Enforcer = enforcer
 	}
 
 	if cfg.Lookup == nil {
@@ -107,8 +85,7 @@ func New(config ...Config) *CasbinMiddleware {
 	}
 
 	return &CasbinMiddleware{
-		config:   cfg,
-		enforcer: enforcer,
+		config: cfg,
 	}
 }
 
@@ -181,7 +158,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
 				vals := append([]string{sub}, options.PermissionParser(permission)...)
-				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
+				if ok, err := cm.config.Enforcer.Enforce(convertToInterface(vals)...); err != nil {
 					return c.SendStatus(fiber.StatusInternalServerError)
 				} else if !ok {
 					return cm.config.Forbidden(c)
@@ -191,7 +168,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
 				vals := append([]string{sub}, options.PermissionParser(permission)...)
-				if ok, err := cm.enforcer.Enforce(convertToInterface(vals)...); err != nil {
+				if ok, err := cm.config.Enforcer.Enforce(convertToInterface(vals)...); err != nil {
 					return c.SendStatus(fiber.StatusInternalServerError)
 				} else if ok {
 					return c.Next()
@@ -214,7 +191,7 @@ func (cm *CasbinMiddleware) RoutePermission() fiber.Handler {
 			return cm.config.Unauthorized(c)
 		}
 
-		if ok, err := cm.enforcer.Enforce(sub, c.Path(), c.Method()); err != nil {
+		if ok, err := cm.config.Enforcer.Enforce(sub, c.Path(), c.Method()); err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		} else if !ok {
 			return cm.config.Forbidden(c)
@@ -246,7 +223,7 @@ func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Option
 			return cm.config.Unauthorized(c)
 		}
 
-		userRoles, err := cm.enforcer.GetRolesForUser(sub)
+		userRoles, err := cm.config.Enforcer.GetRolesForUser(sub)
 		if err != nil {
 			return c.SendStatus(fiber.StatusInternalServerError)
 		}
