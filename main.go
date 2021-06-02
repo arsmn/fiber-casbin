@@ -45,7 +45,6 @@ type CasbinMiddleware struct {
 
 // New creates an authorization middleware for use in Fiber
 func New(config ...Config) *CasbinMiddleware {
-
 	var cfg Config
 	if len(config) > 0 {
 		cfg = config[0]
@@ -158,7 +157,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		if options.ValidationRule == matchAll {
 			for _, permission := range permissions {
 				vals := append([]string{sub}, options.PermissionParser(permission)...)
-				if ok, err := cm.config.Enforcer.Enforce(convertToInterface(vals)...); err != nil {
+				if ok, err := cm.config.Enforcer.Enforce(stringSliceToInterfaceSlice(vals)...); err != nil {
 					return c.SendStatus(fiber.StatusInternalServerError)
 				} else if !ok {
 					return cm.config.Forbidden(c)
@@ -168,7 +167,7 @@ func (cm *CasbinMiddleware) RequiresPermissions(permissions []string, opts ...fu
 		} else if options.ValidationRule == atLeastOne {
 			for _, permission := range permissions {
 				vals := append([]string{sub}, options.PermissionParser(permission)...)
-				if ok, err := cm.config.Enforcer.Enforce(convertToInterface(vals)...); err != nil {
+				if ok, err := cm.config.Enforcer.Enforce(stringSliceToInterfaceSlice(vals)...); err != nil {
 					return c.SendStatus(fiber.StatusInternalServerError)
 				} else if ok {
 					return c.Next()
@@ -230,14 +229,14 @@ func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Option
 
 		if options.ValidationRule == matchAll {
 			for _, role := range roles {
-				if !contains(userRoles, role) {
+				if !containsString(userRoles, role) {
 					return cm.config.Forbidden(c)
 				}
 			}
 			return c.Next()
 		} else if options.ValidationRule == atLeastOne {
 			for _, role := range roles {
-				if contains(userRoles, role) {
+				if containsString(userRoles, role) {
 					return c.Next()
 				}
 			}
@@ -246,21 +245,4 @@ func (cm *CasbinMiddleware) RequiresRoles(roles []string, opts ...func(o *Option
 
 		return c.Next()
 	}
-}
-
-func contains(s []string, v string) bool {
-	for _, vv := range s {
-		if vv == v {
-			return true
-		}
-	}
-	return false
-}
-
-func convertToInterface(arr []string) []interface{} {
-	in := make([]interface{}, 0)
-	for _, a := range arr {
-		in = append(in, a)
-	}
-	return in
 }
