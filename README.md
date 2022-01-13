@@ -54,14 +54,14 @@ func main() {
   })
 
   app.Post("/blog",
-      authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.MatchAll),
+      authz.RequiresPermissions([]string{"blog:create"}, fibercasbin.WithValidationRule(fibercasbin.MatchAllRule)),
       func(c *fiber.Ctx) error {
         // your handler
       },
   )
   
   app.Delete("/blog/:id",
-    authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.AtLeastOne),
+    authz.RequiresPermissions([]string{"blog:create", "blog:delete"}, fibercasbin.WithValidationRule(fibercasbin.AtLeastOneRule)),
     func(c *fiber.Ctx) error {
       // your handler
     },
