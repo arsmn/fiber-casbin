@@ -22,70 +22,70 @@ func Test_RequiresPermission(t *testing.T) {
 		name        string
 		lookup      func(*fiber.Ctx) string
 		permissions []string
-		rule        func(o *Options)
+		opts        []Option
 		statusCode  int
 	}{
 		{
 			name:        "alice has permission to create blog",
 			lookup:      subjectAlice,
 			permissions: []string{"blog:create"},
-			rule:        MatchAll,
+			opts:        []Option{WithValidationRule(MatchAllRule)},
 			statusCode:  200,
 		},
 		{
 			name:        "alice has permission to create blog",
 			lookup:      subjectAlice,
 			permissions: []string{"blog:create"},
-			rule:        AtLeastOne,
+			opts:        []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode:  200,
 		},
 		{
 			name:        "alice has permission to create and update blog",
 			lookup:      subjectAlice,
 			permissions: []string{"blog:create", "blog:update"},
-			rule:        MatchAll,
+			opts:        []Option{WithValidationRule(MatchAllRule)},
 			statusCode:  200,
 		},
 		{
 			name:        "alice has permission to create comment or blog",
 			lookup:      subjectAlice,
 			permissions: []string{"comment:create", "blog:create"},
-			rule:        AtLeastOne,
+			opts:        []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode:  200,
 		},
 		{
 			name:        "bob has only permission to create comment",
 			lookup:      subjectBob,
 			permissions: []string{"comment:create", "blog:create"},
-			rule:        AtLeastOne,
+			opts:        []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode:  200,
 		},
 		{
 			name:        "unauthenticated user has no permissions",
 			lookup:      subjectNil,
 			permissions: []string{"comment:create"},
-			rule:        MatchAll,
+			opts:        []Option{WithValidationRule(MatchAllRule)},
 			statusCode:  401,
 		},
 		{
 			name:        "bob has not permission to create blog",
 			lookup:      subjectBob,
 			permissions: []string{"blog:create"},
-			rule:        MatchAll,
+			opts:        []Option{WithValidationRule(MatchAllRule)},
 			statusCode:  403,
 		},
 		{
 			name:        "bob has not permission to delete blog",
 			lookup:      subjectBob,
 			permissions: []string{"blog:delete"},
-			rule:        MatchAll,
+			opts:        []Option{WithValidationRule(MatchAllRule)},
 			statusCode:  403,
 		},
 		{
 			name:        "invalid permission",
 			lookup:      subjectBob,
 			permissions: []string{"unknown"},
-			rule:        MatchAll,
+			opts:        []Option{WithValidationRule(MatchAllRule)},
 			statusCode:  500,
 		},
 	}
@@ -99,7 +99,7 @@ func Test_RequiresPermission(t *testing.T) {
 		})
 
 		app.Post("/blog",
-			authz.RequiresPermissions(tt.permissions, tt.rule),
+			authz.RequiresPermissions(tt.permissions, tt.opts...),
 			func(c *fiber.Ctx) error {
 				return c.SendStatus(fiber.StatusOK)
 			},
@@ -124,70 +124,70 @@ func Test_RequiresRoles(t *testing.T) {
 		name       string
 		lookup     func(*fiber.Ctx) string
 		roles      []string
-		rule       func(o *Options)
+		opts       []Option
 		statusCode int
 	}{
 		{
 			name:       "alice has user role",
 			lookup:     subjectAlice,
 			roles:      []string{"user"},
-			rule:       MatchAll,
+			opts:       []Option{WithValidationRule(MatchAllRule)},
 			statusCode: 200,
 		},
 		{
 			name:       "alice has admin role",
 			lookup:     subjectAlice,
 			roles:      []string{"admin"},
-			rule:       AtLeastOne,
+			opts:       []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode: 200,
 		},
 		{
 			name:       "alice has both user and admin roles",
 			lookup:     subjectAlice,
 			roles:      []string{"user", "admin"},
-			rule:       MatchAll,
+			opts:       []Option{WithValidationRule(MatchAllRule)},
 			statusCode: 200,
 		},
 		{
 			name:       "alice has both user and admin roles",
 			lookup:     subjectAlice,
 			roles:      []string{"user", "admin"},
-			rule:       AtLeastOne,
+			opts:       []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode: 200,
 		},
 		{
 			name:       "bob has only user role",
 			lookup:     subjectBob,
 			roles:      []string{"user"},
-			rule:       AtLeastOne,
+			opts:       []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode: 200,
 		},
 		{
 			name:       "unauthenticated user has no permissions",
 			lookup:     subjectNil,
 			roles:      []string{"user"},
-			rule:       MatchAll,
+			opts:       []Option{WithValidationRule(MatchAllRule)},
 			statusCode: 401,
 		},
 		{
 			name:       "bob has not admin role",
 			lookup:     subjectBob,
 			roles:      []string{"admin"},
-			rule:       MatchAll,
+			opts:       []Option{WithValidationRule(MatchAllRule)},
 			statusCode: 403,
 		},
 		{
 			name:       "bob has only user role",
 			lookup:     subjectBob,
 			roles:      []string{"admin", "user"},
-			rule:       AtLeastOne,
+			opts:       []Option{WithValidationRule(AtLeastOneRule)},
 			statusCode: 200,
 		},
 		{
 			name:       "invalid role",
 			lookup:     subjectBob,
 			roles:      []string{"unknown"},
-			rule:       MatchAll,
+			opts:       []Option{WithValidationRule(MatchAllRule)},
 			statusCode: 403,
 		},
 	}
@@ -201,7 +201,7 @@ func Test_RequiresRoles(t *testing.T) {
 		})
 
 		app.Post("/blog",
-			authz.RequiresRoles(tt.roles, tt.rule),
+			authz.RequiresRoles(tt.roles, tt.opts...),
 			func(c *fiber.Ctx) error {
 				return c.SendStatus(fiber.StatusOK)
 			},
