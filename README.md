@@ -1,3 +1,5 @@
+# HAS BEEN MOVED TO https://github.com/gofiber/contrib/tree/main/casbin
+
 ### Casbin
 Casbin middleware for Fiber
 
